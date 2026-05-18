@@ -14,7 +14,7 @@ import requests
 GameMode = Literal["singleplayer", "multiplayer"]
 ResponseFormat = Literal["json", "markdown"]
 WikiItemType = Literal["all", "card", "relic"]
-
+GameCharacter = {0: "IRONCLAD", 1: "SILENT", 2: "REGENT", 3: "NECROBINDER", 4: "DEFECT"}
 
 class STS2ClientError(Exception):
     """Raised when the STS2_MCP API returns an error or invalid response."""
