@@ -97,7 +97,7 @@ class Game:
             raw_state.get("state_type"),
             action,
         )
-
+        # TODO: Update game state(Player?)
         if action_type == "end_turn":
             return self.client.end_turn()
 
@@ -111,6 +111,7 @@ class Game:
             )
 
         if action_type == "use_potion":
+            #TODO: Update potion state in self.player
             return self.client.use_potion(
                 slot=action["slot"],
                 target=action.get("target"),
@@ -135,6 +136,7 @@ class Game:
             )
 
         if action_type == "select_card_reward":
+            ## TODO: Update player deck in self.player
             return self.client.select_card_reward(
                 card_index=action["card_index"],
             )
@@ -143,6 +145,7 @@ class Game:
             return self.client.skip_card_reward()
 
         if action_type == "choose_rest_option":
+            ## TODO: Update player state after this: Rest-> Add HP? Upgrade card-> Update deck?
             return self.client.choose_rest_option(
                 index=action["index"],
             )
@@ -173,7 +176,7 @@ class Game:
 
         logger.warning("Game: unknown action type=%s action=%s", action_type, action)
         raise ValueError(f"Unknown action type: {action_type}")
-        
+    
     def is_end_state(self)-> bool:
         return self.client.get_state().get("state_type", False) == "game_over"
 
