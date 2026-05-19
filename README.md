@@ -9,9 +9,13 @@ Cards in hand, Cards in Discard Pile, Cards in Draw Pile, Cards in Exhaust Pile
 Player Buff
 Player Block
 Current Energy, Max Energy
+
 # CREDITS:
+Codex is used in part of the code (mcp_api.py, data.py)
 This project is built upon spire-codex and STS2MCP(version 0.4.0).
 This project uses STS2MCP to communicate with the game and fetch data and uses data json files in spire-codex. 
+
 https://github.com/ptrlrd/spire-codex
+
 https://github.com/Gennadiyev/STS2MCP
 
