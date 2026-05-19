@@ -10,8 +10,6 @@ def main():
     )
 
     game = Game(
-        state_size=(128,),
-        action_size=0,
         character=0,
     )
 
