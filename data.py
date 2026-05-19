@@ -230,6 +230,10 @@ def get_data_map_size(data_type: str) -> int:
     return DataIdMap.get_size(data_type)
 
 
+def get_card_map_size() -> int:
+    return get_data_map_size("cards")
+
+
 def get_card_index(card_id: str | None, default: int = -1) -> int:
     return get_data_index_or_default("cards", card_id, default)
 
@@ -240,6 +244,10 @@ def get_power_index(power_id: str | None, default: int = -1) -> int:
 
 def get_intent_index(intent_id: str | None, default: int = -1) -> int:
     return get_data_index_or_default("intents", intent_id, default)
+
+
+def get_monster_index(monster_id: str | None, default: int = -1) -> int:
+    return get_data_index_or_default("monsters", monster_id, default)
 
 
 def get_relic_index(relic_id: str | None, default: int = -1) -> int:

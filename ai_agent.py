@@ -1,6 +1,6 @@
 import logging
 
-from policies.battle_policy import BattlePolicy
+from agents.battle_agent import BattleDQNAgent
 from policies.map_policy import MapPolicy
 from policies.reward_policy import RewardPolicy
 from policies.shop_policy import ShopPolicy
@@ -12,9 +12,19 @@ from policies.default_policy import DefaultPolicy
 logger = logging.getLogger(__name__)
 
 
+BATTLE_SCREEN_TYPES = {"monster", "elite", "boss", "hand_select"}
+BATTLE_ACTION_TYPES = {
+    "end_turn",
+    "play_card",
+    "use_potion",
+    "combat_select_card",
+    "combat_confirm_selection",
+}
+
+
 class Agent:
     def __init__(self):
-        self.battle_policy = BattlePolicy()
+        self.battle_agent = BattleDQNAgent()
         self.map_policy = MapPolicy()
         self.reward_policy = RewardPolicy()
         self.shop_policy = ShopPolicy()
@@ -28,9 +38,9 @@ class Agent:
 
         logger.debug("Agent: choosing action screen_type=%s", screen_type)
 
-        if screen_type in ["monster", "elite", "boss", "hand_select"]:
-            action = self.battle_policy.choose_action(raw_state)
-            logger.debug("Agent: selected BattlePolicy action=%s", action)
+        if screen_type in BATTLE_SCREEN_TYPES:
+            action = self.battle_agent.choose_action(raw_state, training=True)
+            logger.debug("Agent: selected BattleDQNAgent action=%s", action)
             return action
 
         if screen_type == "map":
@@ -61,3 +71,60 @@ class Agent:
         action = self.default_policy.choose_action(raw_state)
         logger.debug("Agent: selected DefaultPolicy action=%s", action)
         return action
+
+    def train_from_step(
+        self,
+        prev_raw_state: dict,
+        action: dict,
+        reward: float,
+        next_raw_state: dict,
+        done: bool,
+        reward_details: dict | None = None,
+    ) -> dict | None:
+        if prev_raw_state.get("state_type") not in BATTLE_SCREEN_TYPES:
+            return None
+
+        if action.get("type") not in BATTLE_ACTION_TYPES:
+            return None
+
+        action_mask = self.battle_agent.valid_action_mask(prev_raw_state)
+        next_action_mask = self.battle_agent.valid_action_mask(next_raw_state)
+        state = self.battle_agent.encode_state(prev_raw_state, action_mask)
+        next_state = self.battle_agent.encode_state(next_raw_state, next_action_mask)
+        action_id = self.battle_agent.get_game_action_id(action, prev_raw_state)
+
+        reward_details = reward_details or {}
+        battle_result = reward_details.get("result")
+        battle_done = done or battle_result in {"won", "lost"}
+
+        self.battle_agent.remember(
+            state,
+            action_id,
+            reward,
+            next_state,
+            battle_done,
+            next_action_mask,
+        )
+        loss = self.battle_agent.train_step()
+        won_battle = battle_result == "won"
+        lost_battle = battle_result == "lost"
+
+        logger.debug(
+            "Agent: battle training step reward=%.2f loss=%s replay_size=%d epsilon=%.3f",
+            reward,
+            loss,
+            len(self.battle_agent.replay_buffer),
+            self.battle_agent.epsilon,
+        )
+        return {
+            "loss": loss,
+            "updated": loss is not None,
+            "reward": float(reward),
+            "action_type": action.get("type"),
+            "epsilon": self.battle_agent.epsilon,
+            "replay_size": len(self.battle_agent.replay_buffer),
+            "learn_steps": self.battle_agent.learn_steps,
+            "won_battle": won_battle,
+            "lost_battle": lost_battle,
+            "reward_details": reward_details,
+        }
