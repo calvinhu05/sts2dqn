@@ -38,6 +38,11 @@ class Agent:
 
         logger.debug("Agent: choosing action screen_type=%s", screen_type)
 
+        forced_action = self._forced_transition_action(raw_state)
+        if forced_action is not None:
+            logger.debug("Agent: selected forced transition action=%s", forced_action)
+            return forced_action
+
         if screen_type in BATTLE_SCREEN_TYPES:
             action = self.battle_agent.choose_action(raw_state, training=True)
             logger.debug("Agent: selected BattleDQNAgent action=%s", action)
@@ -71,6 +76,21 @@ class Agent:
         action = self.default_policy.choose_action(raw_state)
         logger.debug("Agent: selected DefaultPolicy action=%s", action)
         return action
+
+    def _forced_transition_action(self, raw_state: dict) -> dict | None:
+        state_type = raw_state.get("state_type")
+
+        if state_type == "hand_select":
+            hand_select = raw_state.get("hand_select", {})
+            if hand_select.get("can_confirm", False):
+                return {"type": "combat_confirm_selection"}
+
+        if state_type == "card_select":
+            card_select = raw_state.get("card_select", {})
+            if card_select.get("can_confirm", False):
+                return {"type": "confirm_selection"}
+
+        return None
 
     def train_from_step(
         self,

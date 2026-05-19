@@ -103,7 +103,7 @@ class BattleDQNAgent:
     gamma=0.99,
     epsilon=1.0,
     learning_rate=0.0005,
-    epsilon_decay=0.995,
+    epsilon_decay=0.9995,
     epsilon_min=0.01,
     batch_size=32,
     memory_size=100000,

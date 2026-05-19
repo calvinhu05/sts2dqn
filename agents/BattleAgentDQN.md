@@ -69,6 +69,8 @@ Terminal battle reward remains the main signal:
 +100 for winning a battle
 0 for losing a battle
 -1 for each HP lost from battle start to battle end
+-0.1 for each Gold lost from battle start to battle end
+-5 for each Max HP lost from battle start to battle end
 -5 for each potion used
 ```
 
@@ -78,5 +80,5 @@ Per-step shaping is added to make learning less sparse:
 +0.2 for each enemy HP removed this step
 +10 for each enemy killed this step
 -0.1 for each unspent energy when ending the turn
--1 for action errors
+0 for action errors
 ```

@@ -118,7 +118,9 @@ def main():
                     result = reward_details.get("result")
                     logging.info(
                         "Episode %d battle %d finished: result=%s battle_reward=%.2f "
-                        "steps=%d hp=%s->%s hp_lost=%d potions_used=%d hp_penalty=%.2f win_reward=%.2f",
+                        "steps=%d hp=%s->%s hp_lost=%d gold_lost=%d max_hp_lost=%d "
+                        "potions_used=%d hp_penalty=%.2f gold_penalty=%.2f "
+                        "max_hp_penalty=%.2f win_reward=%.2f",
                         episode,
                         battle_number,
                         result,
@@ -127,8 +129,12 @@ def main():
                         reward_details.get("battle_start_hp"),
                         reward_details.get("next_hp"),
                         current_battle_hp_lost,
+                        reward_details.get("gold_lost", 0),
+                        reward_details.get("max_hp_lost", 0),
                         current_battle_potions_used,
                         reward_details.get("hp_penalty", 0.0),
+                        reward_details.get("gold_penalty", 0.0),
+                        reward_details.get("max_hp_penalty", 0.0),
                         reward_details.get("win_reward", 0.0),
                     )
                     current_battle_reward = 0.0

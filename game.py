@@ -8,6 +8,8 @@ from player import Player
 COMBAT_STATE_TYPES = {"monster", "elite", "boss"}
 BATTLE_STATE_TYPES = COMBAT_STATE_TYPES | {"hand_select"}
 BATTLE_REWARD_STATE_TYPES = {"rewards", "card_reward"}
+BATTLE_GOLD_LOSS_PENALTY = 0.1
+BATTLE_MAX_HP_LOSS_PENALTY = 5.0
 
 
 class Game:
@@ -27,6 +29,8 @@ class Game:
         self.player=Player(character)
         self._last_player_hp = None
         self._battle_start_hp = None
+        self._battle_start_gold = None
+        self._battle_start_max_hp = None
         self._battle_reward_closed = False
         # Init game client in singleplayer mode
         self.client = STS2Client(
@@ -81,6 +85,8 @@ class Game:
         self.player=Player(self.character)
         self._last_player_hp = self._player_hp(raw_state, self._last_player_hp)
         self._battle_start_hp = None
+        self._battle_start_gold = None
+        self._battle_start_max_hp = None
         self._battle_reward_closed = False
         self.act=self.client.get_state().get("run", {}).get("act", 0)
         self.floor=self.client.get_state().get("run", {}).get("floor", 0)
@@ -253,6 +259,10 @@ class Game:
     ) -> tuple[float, dict]:
         prev_hp = self._player_hp(prev_state, self._last_player_hp)
         next_hp = self._player_hp(next_state, prev_hp)
+        prev_gold = self._player_gold(prev_state)
+        next_gold = self._player_gold(next_state, prev_gold)
+        prev_max_hp = self._player_max_hp(prev_state)
+        next_max_hp = self._player_max_hp(next_state, prev_max_hp)
         prev_has_alive_enemy = self._battle_has_alive_enemy(prev_state)
 
         if prev_has_alive_enemy:
@@ -260,6 +270,10 @@ class Game:
 
         if self._battle_start_hp is None and prev_has_alive_enemy:
             self._battle_start_hp = prev_hp
+        if self._battle_start_gold is None and prev_has_alive_enemy:
+            self._battle_start_gold = prev_gold
+        if self._battle_start_max_hp is None and prev_has_alive_enemy:
+            self._battle_start_max_hp = prev_max_hp
 
         if self._battle_reward_closed and not prev_has_alive_enemy:
             return 0.0, {
@@ -270,12 +284,24 @@ class Game:
                 "already_resolved": True,
                 "prev_hp": prev_hp,
                 "next_hp": next_hp,
+                "prev_gold": prev_gold,
+                "next_gold": next_gold,
+                "prev_max_hp": prev_max_hp,
+                "next_max_hp": next_max_hp,
                 "total": 0.0,
             }
 
         step_hp_lost = max(0, prev_hp - next_hp)
         battle_start_hp = self._battle_start_hp if self._battle_start_hp is not None else prev_hp
+        battle_start_gold = self._battle_start_gold if self._battle_start_gold is not None else prev_gold
+        battle_start_max_hp = (
+            self._battle_start_max_hp
+            if self._battle_start_max_hp is not None
+            else prev_max_hp
+        )
         total_hp_lost = max(0, battle_start_hp - next_hp)
+        total_gold_lost = max(0, battle_start_gold - next_gold)
+        total_max_hp_lost = max(0, battle_start_max_hp - next_max_hp)
 
         potion_used = bool(action and action.get("type") == "use_potion")
         potion_penalty = -5.0 if potion_used else 0.0
@@ -293,8 +319,20 @@ class Game:
         end_turn_energy_penalty = self._end_turn_energy_penalty(prev_state, action)
         win_reward = 100.0 if battle_result == "won" else 0.0
         hp_penalty = -float(total_hp_lost) if battle_result is not None else 0.0
+        gold_penalty = (
+            -float(total_gold_lost) * BATTLE_GOLD_LOSS_PENALTY
+            if battle_result is not None
+            else 0.0
+        )
+        max_hp_penalty = (
+            -float(total_max_hp_lost) * BATTLE_MAX_HP_LOSS_PENALTY
+            if battle_result is not None
+            else 0.0
+        )
         reward = (
             hp_penalty
+            + gold_penalty
+            + max_hp_penalty
             + potion_penalty
             + win_reward
             + enemy_damage_reward
@@ -303,6 +341,8 @@ class Game:
         )
         if battle_result is not None:
             self._battle_start_hp = None
+            self._battle_start_gold = None
+            self._battle_start_max_hp = None
             self._battle_reward_closed = True
 
         return reward, {
@@ -312,10 +352,20 @@ class Game:
             "result": battle_result,
             "prev_hp": prev_hp,
             "next_hp": next_hp,
+            "prev_gold": prev_gold,
+            "next_gold": next_gold,
+            "prev_max_hp": prev_max_hp,
+            "next_max_hp": next_max_hp,
             "battle_start_hp": battle_start_hp,
+            "battle_start_gold": battle_start_gold,
+            "battle_start_max_hp": battle_start_max_hp,
             "step_hp_lost": step_hp_lost,
             "hp_lost": total_hp_lost,
+            "gold_lost": total_gold_lost,
+            "max_hp_lost": total_max_hp_lost,
             "hp_penalty": hp_penalty,
+            "gold_penalty": gold_penalty,
+            "max_hp_penalty": max_hp_penalty,
             "enemy_hp_lost": enemy_hp_lost,
             "enemies_killed": enemies_killed,
             "enemy_damage_reward": enemy_damage_reward,
@@ -340,8 +390,7 @@ class Game:
             return None
         if (
             next_state_type in BATTLE_STATE_TYPES
-            and
-            self._battle_has_alive_enemy(prev_state)
+            and self._battle_has_alive_enemy(prev_state)
             and not self._battle_has_alive_enemy(next_state)
             and self._enemy_hp_map(prev_state)
         ):
@@ -352,6 +401,18 @@ class Game:
         player = state.get("player", {})
         if isinstance(player, dict) and player.get("hp") is not None:
             return self._parse_int(player.get("hp"), default or 0)
+        return default or 0
+
+    def _player_gold(self, state: dict, default: int | None = 0) -> int:
+        player = state.get("player", {})
+        if isinstance(player, dict) and player.get("gold") is not None:
+            return self._parse_int(player.get("gold"), default or 0)
+        return default or 0
+
+    def _player_max_hp(self, state: dict, default: int | None = 0) -> int:
+        player = state.get("player", {})
+        if isinstance(player, dict) and player.get("max_hp") is not None:
+            return self._parse_int(player.get("max_hp"), default or 0)
         return default or 0
 
     def _enemy_hp_progress(
