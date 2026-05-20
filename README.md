@@ -1,6 +1,6 @@
 # Setup Environment:
-Depot 2868841 Slay The Spire 2 Manifest 4714514708397941145
-Load mod [STS2MCP version 0.4.0](https://github.com/Gennadiyev/STS2MCP)
+1. Depot 2868841 Slay The Spire 2 Manifest 4714514708397941145
+2. Load mod [STS2MCP version 0.4.0](https://github.com/Gennadiyev/STS2MCP)
 
 # CREDITS:
 Codex is used in part of the code (mcp_api.py, data.py)
